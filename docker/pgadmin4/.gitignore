@@ -1,0 +1,3 @@
+*.db
+sessions/*
+!sessions/.empty

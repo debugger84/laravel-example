@@ -1,0 +1,71 @@
+###############################################################################
+#                          Generated on phpdocker.io                          #
+###############################################################################
+
+version: '2'
+services:
+#POSTGRES
+  test-postgres:
+    build:
+      context: .
+      dockerfile: postgresql/Dockerfile
+    container_name: test-postgres
+    volumes:
+      - test-db-volume:/var/lib/postgresql/data #/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=12345
+      - POSTGRES_DB=postgres
+#      - PGDATA=/var/lib/postgresql
+
+#PGADMIN доступен на хост машине по http://localhost:5433
+  test-pgadmin4:
+    image: foxylion/pgadmin4
+    container_name: test-pgadmin4
+    volumes:
+      - ./pgadmin4:/data
+    environment:
+      - PGADMIN_VERSION_MINOR=5
+    ports:
+      - "5433:80"
+
+#NGINX
+  test-webserver:
+    image: phpdockerio/nginx:latest
+    container_name: test-webserver
+    volumes:
+        - ../:/var/www/test
+        - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+        - ../logs/nginx/:/var/log/nginx
+    expose:
+        - "9000"
+    ports:
+        - "8081:80"
+    links:
+        - test-php-fpm
+
+#PHP
+  test-php-fpm:
+    build:
+      context: .
+      dockerfile: php-fpm/Dockerfile
+      args:
+          - PROJECT_PATH=/var/www/test
+          - PUID=1000
+    container_name: test-php-fpm
+    volumes:
+      - ../:/var/www/test
+      - ./php-fpm/php-ini-overrides.ini:/etc/php/7.1/fpm/conf.d/99-overrides.ini
+      - ./php-fpm/php-ini-overrides.ini:/etc/php/7.1/cli/conf.d/99-overrides.ini
+    depends_on:
+      - test-postgres
+    environment:
+      WAIT_HOSTS: test-postgres:5432
+      PHP_IDE_CONFIG: "serverName=docker"
+      PHP_XDEBUG_ENABLED: 1 # Set 1 to enable.
+      XDEBUG_CONFIG: remote_host=10.254.254.254
+
+volumes:
+  test-db-volume: {}
